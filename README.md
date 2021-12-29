@@ -10,3 +10,5 @@ This RFC references several other standards as per [Section 1](https://datatrack
 * [W3C HTML 4.01](https://www.w3.org/TR/html401/): `MediaDesc` is referenced, but not implemented in this libary
 * [RFC 5646](https://datatracker.ietf.org/doc/html/rfc5646): `Language-Tag` is referenced and fully implemented here including a test suite based on the RFC examples
 * [RFC 5987](https://datatracker.ietf.org/doc/html/rfc5987): `ext-value` and `parmname` are referenced and fully implemented here
+
+The library uses parser combinators to create a parser that is very close the grammars found in the RFCs.

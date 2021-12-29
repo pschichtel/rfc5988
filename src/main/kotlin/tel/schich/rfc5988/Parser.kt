@@ -17,12 +17,14 @@ import tel.schich.rfc5988.parsing.takeFirst
 import tel.schich.rfc5988.parsing.takeUntil
 import tel.schich.rfc5988.parsing.takeWhile
 import tel.schich.rfc5988.parsing.then
+import tel.schich.rfc5988.parsing.trace
 import tel.schich.rfc5988.rfc2616.Alpha
 import tel.schich.rfc5988.rfc2616.Digit
-import tel.schich.rfc5988.rfc2616.isSp
+import tel.schich.rfc5988.rfc2616.LowercaseAlpha
+import tel.schich.rfc5988.rfc2616.SP
 import tel.schich.rfc5988.rfc2616.parseCommaSeparatedList
-import tel.schich.rfc5988.rfc2616.parseImpliedLws
 import tel.schich.rfc5988.rfc2616.parseQuotedString
+import tel.schich.rfc5988.rfc2616.takeWithLws
 import tel.schich.rfc5988.rfc3986.parseUri
 import tel.schich.rfc5988.rfc3986.parseUriReference
 import tel.schich.rfc5988.rfc4288.parseRegName
@@ -40,44 +42,50 @@ private val paramTokenChars = Alpha + Digit + setOf(
 
 private fun <T> quoted(parser: Parser<T>): Parser<T> = parser.surroundedBy(take('"'))
 
-private fun takeWithLws(c: Char) = take(c).surroundedBy(parseImpliedLws)
-
-private val parseParamToken = takeWhile(min = 1, predicate = paramTokenChars::contains).map { it.toString() }
+private val parseParamToken = takeWhile(min = 1, oneOf = paramTokenChars).map { it.toString() }
 
 private val parseMediaType = parseSeparated(parseRegName, take('/'), parseRegName)
     .map { (type, subtype) -> MediaType(type.toString(), subtype.toString()) }
 
 private val parseQuotedMediaType = quoted(parseMediaType)
 
-private val parseLowerAlpha = take { it in 'a'..'z' }
-private val parseRegRelType = parseLowerAlpha.concat(takeWhile { it in 'a'..'z' || it in '0'..'9' || it == '.' || it == '-' })
-    .map { it.toString() }
+private val parseLowerAlpha = take(LowercaseAlpha)
+private val parseRegRelType = trace("reg-rel-type",
+    parseLowerAlpha.concat(takeWhile(oneOf = Digit + LowercaseAlpha + setOf('.', '-')))
+        .map { it.toString() }
+)
 
-private val parseExtRelType = parseUri
+private fun isRelationTypeFollow(c: Char) = c == '"' || c == ';' || c == ','
 
-private val parseRelationType = parseRegRelType or parseExtRelType
+private val parseExtRelType: Parser<String> = trace("ext-rel-type", parseUri(::isRelationTypeFollow))
 
-private val parseRelationTypes: Parser<List<String>> = takeFirst(
-    quoted(parseSeparatedList(parseRelationType, takeWhile(min = 1, predicate = ::isSp), min = 1)),
-    parseRelationType.map { listOf(it) },
+private val parseRelationType = trace("relation-type", parseExtRelType or parseRegRelType)
+
+private val parseRelationTypes: Parser<List<String>> = trace("relation-types",
+    takeFirst(
+        quoted(parseSeparatedList(parseRelationType, takeWhile(min = 1, c = SP), min = 1)),
+        parseRelationType.map { listOf(it) },
+    )
 )
 
 private val parseExtNameStar = parseParamName then take('*')
 
 private fun <T : Any> parseParameter(name: String, value: Parser<T>): Parser<T> =
-    take(name).andThenIgnore(take('=').surroundedBy(parseImpliedLws)).andThenTake(value)
+    take(name).andThenIgnore(takeWithLws('=')).andThenTake(value)
 
 private val parseRelParam: Parser<Parameter.Relation> =
-    parseParameter("rel", parseRelationTypes.map(Parameter::Relation))
+    trace("rel-param", parseParameter("rel", parseRelationTypes.map(Parameter::Relation)))
+
+private fun isQuote(c: Char) = c == '"'
 
 private val parseAnchorParam: Parser<Parameter.Anchor> =
-    parseParameter("anchor", quoted(parseUriReference).map(Parameter::Anchor))
+    trace("anchor-param", parseParameter("anchor", quoted(parseUriReference(::isQuote)).map(Parameter::Anchor)))
 
 private val parseRevParam: Parser<Parameter.ReverseRelation> =
     parseParameter("rev", parseRelationTypes.map(Parameter::ReverseRelation))
 
 private val parseHrefLangParam: Parser<Parameter.HrefLanguage> =
-    parseParameter("hreflang", parseLanguageTag.map { Parameter.HrefLanguage(it.toString()) })
+    parseParameter("hreflang", parseLanguageTag.map(Parameter::HrefLanguage))
 
 private val parseMediaParam: Parser<Parameter.Media> =
     parseParameter("media", takeUntil(min = 1) { it == ';' }.map { Parameter.Media(it.toString()) })
@@ -131,11 +139,13 @@ private fun removeDuplicateTitleStar(parameters: List<Parameter>): List<Paramete
     return output.toList()
 }
 
-private val parseLinkValue = takeUntil { it == '>' }.surroundedBy(takeWithLws('<'), takeWithLws('>'))
+private fun isClosingAngle(c: Char) = c == '>'
+
+private val parseLinkValue = parseUriReference(::isClosingAngle).surroundedBy(takeWithLws('<'), takeWithLws('>'))
     .flatMap { uriReference ->
         val parseSeparator = takeWithLws(';')
         parseRepeatedly(parseSeparator.andThenTake(parseLinkParam)).map { parameters ->
-            Link(uriReference.toString(), removeDuplicateTitleStar(parameters))
+            Link(uriReference, removeDuplicateTitleStar(parameters))
         }
     }
 

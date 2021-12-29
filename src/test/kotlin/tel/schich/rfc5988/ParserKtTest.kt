@@ -80,7 +80,7 @@ internal class ParserKtTest {
              rel="start http://example.net/relation/other"""",
             expected = listOf(
                 Link(
-                    "http://example.org",
+                    "http://example.org/",
                     listOf(
                         Parameter.Relation(listOf("start", "http://example.net/relation/other")),
                     ),

@@ -7,6 +7,7 @@ import tel.schich.rfc5988.parsing.andThenIgnore
 import tel.schich.rfc5988.parsing.andThenTake
 import tel.schich.rfc5988.parsing.concat
 import tel.schich.rfc5988.parsing.entireSliceOf
+import tel.schich.rfc5988.parsing.forTrace
 import tel.schich.rfc5988.parsing.map
 import tel.schich.rfc5988.parsing.optional
 import tel.schich.rfc5988.parsing.or
@@ -14,6 +15,7 @@ import tel.schich.rfc5988.parsing.parseRepeatedly
 import tel.schich.rfc5988.parsing.surroundedBy
 import tel.schich.rfc5988.parsing.take
 import tel.schich.rfc5988.parsing.takeFirst
+import tel.schich.rfc5988.parsing.traced
 
 val LowercaseAlpha = ('a'..'z').toSet()
 val UppercaseAlpha = ('A'..'Z').toSet()
@@ -22,15 +24,19 @@ val Digit = ('0'..'9').toSet()
 fun isCtl(c: Char) = c.code in 0..31
 fun isChar(c: Char) = c.code in 0..127
 fun isOctet(c: Char) = c.code in 0..255
-fun isCr(c: Char) = c.code == 13
-fun isLf(c: Char) = c.code == 10
-fun isSp(c: Char) = c.code == 32
-fun isHt(c: Char) = c.code == 9
-val parseCrLf = entireSliceOf(take(::isCr) concat take(::isLf))
-val parseLws = parseCrLf.optional().concat(entireSliceOf(parseRepeatedly(take(::isSp) or take(::isHt), 1)))
-val parseImpliedLws = parseRepeatedly(parseLws)
+const val CR = 13.toChar()
+const val LF = 10.toChar()
+const val CRLF = "$CR$LF"
+const val SP = 32.toChar()
+const val HT = 9.toChar()
+val parseCrLf = take(CRLF)
+val parseLws = parseCrLf.optional().concat(entireSliceOf(parseRepeatedly(take(SP) or take(HT), 1)))
+val parseImpliedLws = parseRepeatedly(parseLws).traced("implied *LWS", shallow = true)
 fun parseText(extraPredicate: (Char) -> Boolean = { true }): Parser<StringSlice> =
     takeFirst(parseLws, take { isOctet(it) && !isCtl(it) && extraPredicate(it) })
+
+fun takeWithLws(c: Char) = take(c).surroundedBy(parseImpliedLws)
+    .traced("takeWithLws(c='${forTrace("$c")}')", shallow = true)
 
 private val parseQdtext: Parser<StringSlice> = parseText { it != '"' }
 
@@ -67,51 +73,59 @@ private fun parseString(input: StringSlice): Result<String> {
 val parseQuotedString: Parser<String> =
     take('"').andThenTake(::parseString).andThenIgnore(take('"'))
 
-private val parseCommaWithLws = take(',').surroundedBy(parseImpliedLws)
+private val parseCommaWithLws = takeWithLws(',')
 
-fun <T : Any> parseCommaSeparatedList(min: Int = 0, max: Int = -1, parser: Parser<T>): Parser<List<T>> = { input ->
-    when (max) {
-        in 0 until min -> Result.Error("Min ($min) can't be larger than max ($max)!", input)
-        0 -> Result.Ok(emptyList(), input)
-        else -> {
-            val optionalElement = parser.optional()
+fun <T : Any> parseCommaSeparatedList(min: Int = 0, max: Int = -1, parser: Parser<T>): Parser<List<T>> {
+    val optionalElement = parser.optional()
 
-            when (val first = optionalElement(input)) {
-                is Result.Error -> first
-                is Result.Ok -> {
-                    val output = mutableListOf<T>()
-                    var maxRemaining = max
-                    var rest = first.rest
-                    val firstValue = first.value
-                    if (firstValue != null) {
-                        output.add(firstValue)
-                        maxRemaining -= 1
-                    }
+    return { input ->
+        when (max) {
+            in 0 until min -> Result.Error("Min ($min) can't be larger than max ($max)!", input)
+            0 -> Result.Ok(emptyList(), input)
+            else -> {
+                val output = mutableListOf<T>()
+                var maxRemaining = max
+                var rest = input
 
-                    val optionalElementWithSeparator = parseCommaWithLws.andThenTake(optionalElement)
-                    while (true) {
-                        when (val result = optionalElementWithSeparator(rest)) {
-                            is Result.Ok -> {
-                                val value = result.value
-                                rest = result.rest
-                                if (value != null) {
-                                    output.add(result.value)
-                                    if (max >= 0 && output.size == max) {
-                                        break
-                                    }
-                                }
-                            }
-                            is Result.Error -> {
-                                break
-                            }
+                when (val first = optionalElement(input)) {
+                    is Result.Ok -> {
+                        val firstValue = first.value
+                        rest = first.rest
+                        if (firstValue != null) {
+                            output.add(firstValue)
+                            maxRemaining -= 1
                         }
                     }
-
-                    if (output.size < min) Result.Error("only matched ${output.size} times, $min required!", input)
-                    else Result.Ok(output.toList(), rest)
+                    is Result.Error -> {
+                    }
                 }
-            }
 
+
+                while (output.size != max) {
+                    when (val result = parseCommaWithLws(rest)) {
+                        is Result.Ok -> {
+                            rest = result.rest
+                        }
+                        is Result.Error -> {
+                            break
+                        }
+                    }
+                    when (val result = optionalElement(rest)) {
+                        is Result.Ok -> {
+                            val value = result.value
+                            rest = result.rest
+                            if (value != null) {
+                                output.add(value)
+                            }
+                        }
+                        is Result.Error -> {
+                        }
+                    }
+                }
+
+                if (output.size < min) Result.Error("only matched ${output.size} times, $min required!", input)
+                else Result.Ok(output.toList(), rest)
+            }
         }
     }
 }

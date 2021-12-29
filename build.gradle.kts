@@ -23,6 +23,8 @@ dependencies {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+    val traceProperty = "tel.schich.rfc5988.parsing.trace"
+    systemProperties[traceProperty] = System.getProperty(traceProperty)
 }
 
 tasks.withType<KotlinCompile> {

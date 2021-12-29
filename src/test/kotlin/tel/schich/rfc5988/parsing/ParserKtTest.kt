@@ -179,7 +179,7 @@ internal class ParserKtTest {
 
     @Test
     fun takeString() {
-        val result = take("1a")("1ab")
+        val result = takeString("1a")("1ab")
         assertIs<Result.Ok<StringSlice>>(result)
         assertEquals("1a", result.value.toString())
         assertEquals("b", result.rest.toString())

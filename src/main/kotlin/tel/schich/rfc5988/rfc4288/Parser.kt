@@ -11,4 +11,4 @@ private val RegisteredNameChars = Alpha + Digit + setOf(
     '+', '-', '^', '_',
 )
 
-val parseRegName = takeWhile(min = 1, max = 127, predicate = RegisteredNameChars::contains)
+val parseRegName = takeWhile(min = 1, max = 127, oneOf = RegisteredNameChars)

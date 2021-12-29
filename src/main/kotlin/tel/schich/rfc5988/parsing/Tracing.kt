@@ -5,10 +5,17 @@ private val enableTracing = System.getProperty("tel.schich.rfc5988.parsing.trace
 private var suppressTraces = false
 private var traceDepth = 0
 
-fun forTrace(c: Char): String = "'${forTrace("$c", "'")}'"
-
+@JvmName("forTraceChars")
 fun forTrace(chars: Set<Char>): String =
     chars.joinToString(prefix = "{", separator = ", ", postfix = "}") { forTrace(it) }
+
+@JvmName("forTraceStrings")
+fun forTrace(strings: Set<CharSequence>): String =
+    strings.joinToString(prefix = "{", separator = ", ", postfix = "}") { forTrace(it, "\"") }
+
+fun forTrace(c: Char): String = "'${forTrace("$c", "'")}'"
+
+fun forTrace(c: String): String = "\"${forTrace(c, "\"")}\""
 
 fun forTrace(s: CharSequence, quote: String) = forTrace(s).replace(quote, "\\$quote")
 

@@ -13,6 +13,7 @@ import tel.schich.rfc5988.parsing.parseSeparated
 import tel.schich.rfc5988.parsing.parseSeparatedList
 import tel.schich.rfc5988.parsing.surroundedBy
 import tel.schich.rfc5988.parsing.take
+import tel.schich.rfc5988.parsing.takeString
 import tel.schich.rfc5988.parsing.takeFirst
 import tel.schich.rfc5988.parsing.takeUntil
 import tel.schich.rfc5988.parsing.takeWhile
@@ -71,7 +72,7 @@ private val parseRelationTypes: Parser<List<String>> = trace("relation-types",
 private val parseExtNameStar = parseParamName then take('*')
 
 private fun <T : Any> parseParameter(name: String, value: Parser<T>): Parser<T> =
-    take(name).andThenIgnore(takeWithLws('=')).andThenTake(value)
+    takeString(name).andThenIgnore(takeWithLws('=')).andThenTake(value)
 
 private val parseRelParam: Parser<Parameter.Relation> =
     trace("rel-param", parseParameter("rel", parseRelationTypes.map(Parameter::Relation)))

@@ -205,9 +205,15 @@ fun take(chars: Set<Char>): Parser<StringSlice> =
 fun take(predicate: (Char) -> Boolean): Parser<StringSlice> =
     trace("take(predicate=...)", takeOneChar(predicate))
 
-fun take(s: CharSequence): Parser<StringSlice> = trace("take(s=\"${forTrace(s, "\"")}\")") { input ->
+fun takeString(s: CharSequence): Parser<StringSlice> = trace("take(s=\"${forTrace(s, "\"")}\")") { input ->
     if (input.startsWith(s)) Result.Ok(input.subSlice(0, s.length), input.subSlice(s.length))
     else Result.Error("$s was not recognized!", input)
+}
+
+fun takeString(strings: Set<CharSequence>): Parser<StringSlice> = trace("take(strings=${forTrace(strings)})") { input ->
+    val firstMatching = strings.firstOrNull { input.startsWith(it) }
+    if (firstMatching == null) Result.Error("No string matched!", input)
+    else Result.Ok(input.subSlice(0, firstMatching.length), input.subSlice(firstMatching.length))
 }
 
 fun entireSliceOf(parser: Parser<*>): Parser<StringSlice> = trace("entireSliceOf()")  { input ->

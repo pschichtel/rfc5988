@@ -14,6 +14,7 @@ import tel.schich.rfc5988.parsing.or
 import tel.schich.rfc5988.parsing.parseRepeatedly
 import tel.schich.rfc5988.parsing.surroundedBy
 import tel.schich.rfc5988.parsing.take
+import tel.schich.rfc5988.parsing.takeString
 import tel.schich.rfc5988.parsing.takeFirst
 import tel.schich.rfc5988.parsing.traced
 
@@ -29,7 +30,7 @@ const val LF = 10.toChar()
 const val CRLF = "$CR$LF"
 const val SP = 32.toChar()
 const val HT = 9.toChar()
-val parseCrLf = take(CRLF)
+val parseCrLf = takeString(CRLF)
 val parseLws = parseCrLf.optional().concat(entireSliceOf(parseRepeatedly(take(SP) or take(HT), 1)))
 val parseImpliedLws = parseRepeatedly(parseLws).traced("implied *LWS", shallow = true)
 fun parseText(extraPredicate: (Char) -> Boolean = { true }): Parser<StringSlice> =

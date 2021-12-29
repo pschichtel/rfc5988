@@ -1,6 +1,5 @@
 package tel.schich.rfc5988.rfc5987
 
-import tel.schich.rfc5988.ExtValue
 import tel.schich.rfc5988.parsing.Parser
 import tel.schich.rfc5988.parsing.Result
 import tel.schich.rfc5988.parsing.andThenTake
@@ -16,6 +15,7 @@ import tel.schich.rfc5988.parsing.takeWhile
 import tel.schich.rfc5988.rfc2234.HexDigitChars
 import tel.schich.rfc5988.rfc2616.Alpha
 import tel.schich.rfc5988.rfc2616.Digit
+import tel.schich.rfc5988.rfc5646.LanguageTag
 import tel.schich.rfc5988.rfc5646.parseLanguageTag
 import java.nio.charset.Charset
 
@@ -79,3 +79,5 @@ val parseExtValue = parseCharset.flatMap { charsetName ->
         }
     }
 }
+
+data class ExtValue(val charset: Charset, val language: LanguageTag?, val value: String)

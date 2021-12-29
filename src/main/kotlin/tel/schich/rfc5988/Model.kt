@@ -1,9 +1,7 @@
 package tel.schich.rfc5988
 
 import tel.schich.rfc5988.rfc5646.LanguageTag
-import java.nio.charset.Charset
-
-data class ExtValue(val charset: Charset, val language: LanguageTag?, val value: String)
+import tel.schich.rfc5988.rfc5987.ExtValue
 
 data class MediaType(val typeName: String, val subTypeName: String)
 

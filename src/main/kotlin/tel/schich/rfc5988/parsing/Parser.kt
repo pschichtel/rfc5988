@@ -4,14 +4,14 @@ typealias Parser<T> = (StringSlice) -> Result<T>
 
 operator fun <T> Parser<T>.invoke(s: String) = this(StringSlice.of(s))
 
-fun <T, U> Parser<T>.flatMap(f: (T) -> Parser<U>): Parser<U> = trace("flatMap($f)") { input ->
+fun <T, U> Parser<T>.flatMap(f: (T) -> Parser<U>): Parser<U> = trace("flatMap()") { input ->
     when (val result = this(input)) {
         is Result.Ok -> f(result.value)(result.rest)
         is Result.Error -> result
     }
 }
 
-fun <T, U> Parser<T>.map(f: (T) -> U): Parser<U> = trace("map($f)") { input ->
+fun <T, U> Parser<T>.map(f: (T) -> U): Parser<U> = { input ->
     when (val result = this(input)) {
         is Result.Ok -> Result.Ok(f(result.value), result.rest)
         is Result.Error -> result
@@ -75,7 +75,7 @@ fun <T> Parser<T>.surroundedBy(parser: Parser<*>): Parser<T> = surroundedBy(pars
 
 infix fun <T : Any> Parser<T>.or(other: Parser<T>): Parser<T> = takeFirst(this, other)
 
-fun <T : Any> Parser<T>.optional(): Parser<T?> = { input ->
+fun <T : Any> Parser<T>.optional(): Parser<T?> = trace("optional()") { input ->
     when (val result = this(input)) {
         is Result.Ok -> result
         is Result.Error -> Result.Ok(null, input)
@@ -100,15 +100,15 @@ fun <T> parseSeparatedList(parser: Parser<T>, separator: Parser<*>, min: Int = 0
                     maxRemaining -= 1
 
                     while (true) {
-                        when (val result = separator(rest)) {
+                        val separatorResult = separator(rest)
+                        when (separatorResult) {
                             is Result.Ok -> {
-                                rest = result.rest
                             }
                             is Result.Error -> {
                                 break
                             }
                         }
-                        when (val result = parser(rest)) {
+                        when (val result = parser(separatorResult.rest)) {
                             is Result.Ok -> {
                                 rest = result.rest
                                 output.add(result.value)
@@ -135,7 +135,7 @@ fun <T : Any> takeFirst(vararg parsers: Parser<T>): Parser<T> = trace("takeFirst
         ?: Result.Error("No parser worked!", input)
 }
 
-fun <T> parseRepeatedly(parser: Parser<T>, min: Int = 0, max: Int = -1): Parser<List<T>> = trace("parseRepeatedLy(min=$min, max=$max, parser=...)") { input ->
+fun <T> parseRepeatedly(parser: Parser<T>, min: Int = 0, max: Int = -1): Parser<List<T>> = trace("parseRepeatedly(min=$min, max=$max, parser=...)") { input ->
     when (max) {
         in 0 until min -> Result.Error("Min ($min) can't be larger than max ($max)!", input)
         0 -> Result.Ok(emptyList(), input)
@@ -188,6 +188,21 @@ fun takeWhile(min: Int = 0, max: Int = -1, c: Char): Parser<StringSlice> =
 
 fun takeUntil(min: Int = 0, max: Int = -1, predicate: (Char) -> Boolean) = takeWhile(min, max) { !predicate(it) }
 
+private fun takeExactlyWhilePredicate(min: Int, max: Int, predicate: (Char) -> Boolean): Parser<StringSlice> = { input ->
+    var len = 0
+    while (len < input.length && predicate(input[len])) {
+        len += 1
+    }
+    when {
+        len < min -> Result.Error("$len were recognized, >= $min required!", input)
+        len > max -> Result.Error("$len were recognized, <= $max required!", input)
+        else -> Result.Ok(input.subSlice(0, len), input.subSlice(len))
+    }
+}
+
+fun takeExactlyWhile(min: Int, max: Int, oneOf: Set<Char>) =
+    trace("takeExactlyWhile(min=$min, max=$max, oneOf=${forTrace(oneOf)})", takeExactlyWhilePredicate(min, max, oneOf::contains))
+
 private fun takeOneChar(predicate: (Char) -> Boolean): Parser<StringSlice> = { input ->
     if (input.isEmpty()) Result.Error("no input left!", input)
     else {
@@ -219,6 +234,16 @@ fun takeString(strings: Set<CharSequence>): Parser<StringSlice> = trace("take(st
 fun entireSliceOf(parser: Parser<*>): Parser<StringSlice> = trace("entireSliceOf()")  { input ->
     when (val result = parser(input)) {
         is Result.Ok -> Result.Ok(input.subSlice(0, input.length - result.rest.length), result.rest)
+        is Result.Error -> result
+    }
+}
+
+fun <T> parseEntirely(parser: Parser<T>): Parser<T> = { input ->
+    when (val result = parser(input)) {
+        is Result.Ok -> {
+            if (result.rest.isEmpty()) result
+            else Result.Error("Parser did not recognize entire input: ${result.rest}", input)
+        }
         is Result.Error -> result
     }
 }

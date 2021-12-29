@@ -4,6 +4,8 @@ import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 import tel.schich.rfc5988.parsing.Result
 import tel.schich.rfc5988.parsing.invoke
+import tel.schich.rfc5988.rfc5646.Language
+import tel.schich.rfc5988.rfc5646.LanguageTag
 import kotlin.test.assertIs
 
 internal class ParserKtTest {
@@ -49,6 +51,7 @@ internal class ParserKtTest {
 
     @Test
     fun thirdExampleFromSpec() {
+        val de = LanguageTag.Simple(language = Language(primary = "de"))
         testExample(
             input = """</TheBook/chapter2>;
          rel="previous"; title*=UTF-8'de'letztes%20Kapitel,
@@ -59,14 +62,14 @@ internal class ParserKtTest {
                     "/TheBook/chapter2",
                     listOf(
                         Parameter.Relation(listOf("previous")),
-                        Parameter.TitleStar(ExtValue(Charsets.UTF_8, "de", "letztes Kapitel")),
+                        Parameter.TitleStar(ExtValue(Charsets.UTF_8, de, "letztes Kapitel")),
                     ),
                 ),
                 Link(
                     "/TheBook/chapter4",
                     listOf(
                         Parameter.Relation(listOf("next")),
-                        Parameter.TitleStar(ExtValue(Charsets.UTF_8, "de", "nächstes Kapitel")),
+                        Parameter.TitleStar(ExtValue(Charsets.UTF_8, de, "nächstes Kapitel")),
                     ),
                 )
             ),

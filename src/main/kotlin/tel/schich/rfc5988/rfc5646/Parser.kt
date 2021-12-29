@@ -1,13 +1,19 @@
 package tel.schich.rfc5988.rfc5646
 
+import tel.schich.rfc5988.parsing.Parser
+import tel.schich.rfc5988.parsing.Result
+import tel.schich.rfc5988.parsing.andThenTake
+import tel.schich.rfc5988.parsing.concat
 import tel.schich.rfc5988.parsing.entireSliceOf
+import tel.schich.rfc5988.parsing.flatMap
 import tel.schich.rfc5988.parsing.map
 import tel.schich.rfc5988.parsing.optional
 import tel.schich.rfc5988.parsing.or
 import tel.schich.rfc5988.parsing.parseRepeatedly
+import tel.schich.rfc5988.parsing.parseSeparatedList
 import tel.schich.rfc5988.parsing.take
+import tel.schich.rfc5988.parsing.takeExactlyWhile
 import tel.schich.rfc5988.parsing.takeString
-import tel.schich.rfc5988.parsing.takeWhile
 import tel.schich.rfc5988.parsing.then
 import tel.schich.rfc5988.rfc2616.Alpha
 import tel.schich.rfc5988.rfc2616.Digit
@@ -28,7 +34,7 @@ private val parseRegular = takeString(
         "zh-min-nan",
         "zh-xiang",
     )
-).map { it.toString() }
+).map { LanguageTag.Grandfathered.Regular(it.toString()) }
 
 private val parseIrregular = takeString(
     setOf(
@@ -50,24 +56,87 @@ private val parseIrregular = takeString(
         "sgn-BE-NL",
         "sgn-CH-DE",
     )
-).map { it.toString() }
+).map { LanguageTag.Grandfathered.Irregular(it.toString()) }
 
-private val parseGrandfathered = parseIrregular or parseRegular
+private val parseGrandfathered: Parser<LanguageTag.Grandfathered> = parseIrregular or parseRegular
 
-private val parsePrivateUse = take('x') then parseRepeatedly(take('-') then takeWhile(1, 8, AlphaNumericChars), 1)
+private val parsePrivateUse =
+    entireSliceOf(take('x') then parseRepeatedly(take('-') concat takeExactlyWhile(1, 8, AlphaNumericChars), 1))
 
-private val parseExtension = take(SingletonChars) then parseRepeatedly(take('-') then takeWhile(2, 8, AlphaNumericChars), 1)
+private val parseSingleton: Parser<Char> = take(SingletonChars).map { it[0] }
 
-private val parseVariant = takeWhile(5, 8, AlphaNumericChars) or take(Digit) then takeWhile(3, 3, AlphaNumericChars)
+private val parseExtension: Parser<Extension> = parseSingleton.flatMap { prefix ->
+    take('-').andThenTake(parseSeparatedList(takeExactlyWhile(2, 8, AlphaNumericChars), take('-'), 1)).map { parts ->
+        Extension(prefix, parts.map { it.toString() })
+    }
+}
 
-private val parseRegion = takeWhile(2, 2, Alpha) or takeWhile(3, 3, Digit)
+private val parseVariant = (takeExactlyWhile(5, 8, AlphaNumericChars) or (take(Digit) concat takeExactlyWhile(3, 3, AlphaNumericChars)))
 
-private val parseScript = takeWhile(4, 4, Alpha)
+private val parseRegion = (takeExactlyWhile(2, 2, Alpha) or takeExactlyWhile(3, 3, Digit))
 
-private val parseExtlang = takeWhile(3, 3, Alpha) then parseRepeatedly(take('-') then takeWhile(3, 3, Alpha), 0, 2)
+private val parseScript = takeExactlyWhile(4, 4, Alpha)
 
-private val parseLanguage = takeWhile(2, 3, Alpha) then (take('-') then parseExtlang).optional()
+private val parseExtlang = entireSliceOf(takeExactlyWhile(3, 3, Alpha) then parseRepeatedly(take('-') then takeExactlyWhile(3, 3, Alpha), 0, 2))
 
-private val parseLangtag = parseLanguage then (take('-') then parseScript).optional() then (take('-') then parseRegion).optional() then parseRepeatedly(take('-') then parseVariant) then parseRepeatedly(take('-') then parseExtension) then (take('-') then parsePrivateUse).optional()
+private val parseLanguage: Parser<Language> = takeExactlyWhile(2, 3, Alpha).flatMap { primary ->
+    take('-').andThenTake(parseExtlang).optional().map { extended ->
+        Language(primary.toString(), extended?.toString())
+    }
+}
 
-val parseLanguageTag = entireSliceOf(parseLangtag or parsePrivateUse or parseGrandfathered).map { it.toString() }
+private val parseLangtag: Parser<LanguageTag.Simple> = parseLanguage.flatMap { language ->
+    take('-').andThenTake(parseScript).optional().flatMap { script ->
+        take('-').andThenTake(parseRegion).optional().flatMap { region ->
+            parseRepeatedly(take('-').andThenTake(parseVariant)).flatMap { variants ->
+                parseRepeatedly(take('-').andThenTake(parseExtension)).flatMap { extensions ->
+                    take('-').andThenTake(parsePrivateUse).optional().flatMap { privateUse ->
+                        { input ->
+                            val extensionMap = extensions.groupBy { it.prefix }
+                            if (extensionMap.any { it.value.size > 1 }) {
+                                Result.Error("Duplicated extensions exists: $extensionMap", input)
+                            } else {
+                                val tag = LanguageTag.Simple(
+                                    language,
+                                    script?.toString(),
+                                    region?.toString(),
+                                    variants.map { it.toString() },
+                                    extensionMap.mapValues { (_, value) -> value.first() },
+                                    privateUse?.toString(),
+                                )
+                                Result.Ok(tag, input)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private val parsePrivateUseTag: Parser<LanguageTag.PrivateUse> =
+    parsePrivateUse.map { LanguageTag.PrivateUse(it.toString()) }
+
+val parseLanguageTag: Parser<LanguageTag> = parseLangtag or parsePrivateUseTag or parseGrandfathered
+
+data class Language(val primary: String, val extended: String? = null)
+
+data class Extension(val prefix: Char, val parts: List<String>)
+
+sealed interface LanguageTag {
+    data class Simple(
+        val language: Language,
+        val script: String? = null,
+        val region: String? = null,
+        val variants: List<String> = emptyList(),
+        val extensions: Map<Char, Extension> = emptyMap(),
+        val privateUse: String? = null,
+    ) : LanguageTag
+
+    data class PrivateUse(val name: String) : LanguageTag
+
+    sealed interface Grandfathered : LanguageTag {
+        data class Irregular(val name: String) : Grandfathered
+        data class Regular(val name: String) : Grandfathered
+    }
+}

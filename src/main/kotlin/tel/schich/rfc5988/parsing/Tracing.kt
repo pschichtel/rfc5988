@@ -51,7 +51,7 @@ fun <T> trace(msg: String, shallow: Boolean, parser: Parser<T>): Parser<T> {
                     println("$prefix ✓ (len=$len, content=\"${ forTrace(content, "\"")}\")")
                 }
                 is Result.Error -> {
-                    println("$prefix ${forTrace(result.message)}")
+                    println("$prefix ! ${forTrace(result.message)}")
                 }
             }
             result

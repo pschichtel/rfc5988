@@ -6,6 +6,7 @@ import tel.schich.rfc5988.parsing.Result
 import tel.schich.rfc5988.parsing.invoke
 import tel.schich.rfc5988.rfc5646.Language
 import tel.schich.rfc5988.rfc5646.LanguageTag
+import tel.schich.rfc5988.rfc5987.ExtValue
 import kotlin.test.assertIs
 
 internal class ParserKtTest {

@@ -71,13 +71,13 @@ private fun parseValueChars(charset: Charset): Parser<String> = { input ->
 
 val parseParamName = takeWhile(min = 1, oneOf = AttrChars)
 
-val parseExtValue = parseCharset.flatMap { charsetName ->
+val parseExtendedValue = parseCharset.flatMap { charsetName ->
     parseLanguageTag.optional().surroundedBy(take('\'')).flatMap { language ->
         val charset = Charset.forName(charsetName)
         parseValueChars(charset).map { chars ->
-            ExtValue(charset, language, chars)
+            ExtendedValue(charset, language, chars)
         }
     }
 }
 
-data class ExtValue(val charset: Charset, val language: LanguageTag?, val value: String)
+data class ExtendedValue(val charset: Charset, val language: LanguageTag?, val value: String)

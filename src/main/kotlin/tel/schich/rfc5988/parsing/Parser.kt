@@ -186,7 +186,11 @@ fun takeWhile(min: Int = 0, max: Int = -1, oneOf: Set<Char>): Parser<StringSlice
 fun takeWhile(min: Int = 0, max: Int = -1, c: Char): Parser<StringSlice> =
     trace("takeWhile(min=$min, max=$max, oneOf=${forTrace(c)})", takeWhilePredicate(min, max) { it == c })
 
-fun takeUntil(min: Int = 0, max: Int = -1, predicate: (Char) -> Boolean) = takeWhile(min, max) { !predicate(it) }
+fun takeUntil(min: Int = 0, max: Int = -1, predicate: (Char) -> Boolean) =
+    trace("takeUntil(min=$min, max=$max)", takeWhilePredicate(min, max) { !predicate(it) })
+
+fun takeUntil(min: Int = 0, max: Int = -1, oneOf: Set<Char>) =
+    trace("takeUntil(min=$min, max=$max, oneOf=${forTrace(oneOf)})", takeWhile(min, max) { it !in oneOf })
 
 private fun takeExactlyWhilePredicate(min: Int, max: Int, predicate: (Char) -> Boolean): Parser<StringSlice> = { input ->
     var len = 0

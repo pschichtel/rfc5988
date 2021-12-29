@@ -30,7 +30,7 @@ import tel.schich.rfc5988.rfc3986.parseUri
 import tel.schich.rfc5988.rfc3986.parseUriReference
 import tel.schich.rfc5988.rfc4288.parseRegName
 import tel.schich.rfc5988.rfc5646.parseLanguageTag
-import tel.schich.rfc5988.rfc5987.parseExtValue
+import tel.schich.rfc5988.rfc5987.parseExtendedValue
 import tel.schich.rfc5988.rfc5987.parseParamName
 
 private val paramTokenChars = Alpha + Digit + setOf(
@@ -41,9 +41,13 @@ private val paramTokenChars = Alpha + Digit + setOf(
     '}', '~',
 )
 
+private val parameterFollowSet = setOf(';', ',')
+
 private fun <T> quoted(parser: Parser<T>): Parser<T> = parser.surroundedBy(take('"'))
 
 private val parseParamToken = takeWhile(min = 1, oneOf = paramTokenChars).map { it.toString() }
+
+private val parseMediaDesc = takeUntil(min = 1, oneOf = parameterFollowSet + '"').map { it.toString() }
 
 private val parseMediaType = parseSeparated(parseRegName, take('/'), parseRegName)
     .map { (type, subtype) -> MediaType(type.toString(), subtype.toString()) }
@@ -56,9 +60,7 @@ private val parseRegRelType = trace("reg-rel-type",
         .map { it.toString() }
 )
 
-private fun isRelationTypeFollow(c: Char) = c == '"' || c == ';' || c == ','
-
-private val parseExtRelType: Parser<String> = trace("ext-rel-type", parseUri(::isRelationTypeFollow))
+private val parseExtRelType: Parser<String> = trace("ext-rel-type", parseUri(parameterFollowSet + '"'))
 
 private val parseRelationType = trace("relation-type", parseExtRelType or parseRegRelType)
 
@@ -69,40 +71,38 @@ private val parseRelationTypes: Parser<List<String>> = trace("relation-types",
     )
 )
 
-private val parseExtNameStar = parseParamName then take('*')
+private val parseExtNameStar = (parseParamName then take('*')).map { it.toString() }
 
 private fun <T : Any> parseParameter(name: String, value: Parser<T>): Parser<T> =
     takeString(name).andThenIgnore(takeWithLws('=')).andThenTake(value)
 
 private val parseRelParam: Parser<Parameter.Relation> =
-    trace("rel-param", parseParameter("rel", parseRelationTypes.map(Parameter::Relation)))
-
-private fun isQuote(c: Char) = c == '"'
+    parseParameter(Parameter.Relation.NAME, parseRelationTypes.map(Parameter::Relation))
 
 private val parseAnchorParam: Parser<Parameter.Anchor> =
-    trace("anchor-param", parseParameter("anchor", quoted(parseUriReference(::isQuote)).map(Parameter::Anchor)))
+    parseParameter(Parameter.Anchor.NAME, quoted(parseUriReference(setOf('"'))).map(Parameter::Anchor))
 
 private val parseRevParam: Parser<Parameter.ReverseRelation> =
-    parseParameter("rev", parseRelationTypes.map(Parameter::ReverseRelation))
+    parseParameter(Parameter.ReverseRelation.NAME, parseRelationTypes.map(Parameter::ReverseRelation))
 
 private val parseHrefLangParam: Parser<Parameter.HrefLanguage> =
-    parseParameter("hreflang", parseLanguageTag.map(Parameter::HrefLanguage))
+    parseParameter(Parameter.HrefLanguage.NAME, parseLanguageTag.map(Parameter::HrefLanguage))
 
 private val parseMediaParam: Parser<Parameter.Media> =
-    parseParameter("media", takeUntil(min = 1) { it == ';' }.map { Parameter.Media(it.toString()) })
+    parseParameter(Parameter.Media.NAME, (quoted(parseMediaDesc) or parseMediaDesc).map(Parameter::Media))
 
 private val parseTitleParam: Parser<Parameter.Title> =
-    parseParameter("title", parseQuotedString.map(Parameter::Title))
+    parseParameter(Parameter.Title.NAME, parseQuotedString.map(Parameter::Title))
 
 private val parseTitleStarParam: Parser<Parameter.TitleStar> =
-    parseParameter("title*", parseExtValue.map(Parameter::TitleStar))
+    parseParameter(Parameter.TitleStar.NAME, parseExtendedValue.map(Parameter::TitleStar))
 
 private val parseTypeParam: Parser<Parameter.Type> =
-    parseParameter("type", (parseMediaParam or parseQuotedMediaType).map { Parameter.Type(it.toString()) })
+    parseParameter(Parameter.Type.NAME, (parseQuotedMediaType or parseMediaType).map { Parameter.Type(it) })
 
 private val parseLinkExtensionStar: Parser<Parameter.ExtensionStar> =
     (parseExtNameStar then takeWithLws('=')).flatMap { name ->
-        parseExtValue.map { ext -> Parameter.ExtensionStar(name.toString(), ext) }
+        parseExtendedValue.map { ext -> Parameter.ExtensionStar(name, ext) }
     }
 
 private val parseLinkExtension: Parser<Parameter.Extension> = parseParamName.flatMap { name ->
@@ -119,34 +119,33 @@ private val parseLinkParam: Parser<Parameter> = takeFirst(
     parseTitleParam,
     parseTitleStarParam,
     parseTypeParam,
-    parseLinkExtension,
     parseLinkExtensionStar,
+    parseLinkExtension,
 )
 
-private fun removeDuplicateTitleStar(parameters: List<Parameter>): List<Parameter> {
-    val output = mutableListOf<Parameter>()
+private val singletonParameters = setOf(
+    Parameter.Relation.NAME,
+    Parameter.Title.NAME,
+    Parameter.TitleStar.NAME,
+    Parameter.Media.NAME, // RFC suggests that duplicated media should be an error, not sure though
+    Parameter.Type.NAME,
+)
 
-    var titleStarSeen = false
-    for (parameter in parameters) {
-        if (parameter is Parameter.TitleStar) {
-            if (titleStarSeen) {
-                continue
-            }
-            titleStarSeen = true
+private fun removeParameterDuplicates(parameters: List<Parameter>): List<Parameter> {
+    return parameters
+        .groupBy { it.name }.mapValues { (name, params) ->
+            if (name in singletonParameters) listOf(params.first())
+            else params
         }
-        output.add(parameter)
-    }
-
-    return output.toList()
+        .values
+        .flatten()
 }
 
-private fun isClosingAngle(c: Char) = c == '>'
-
-private val parseLinkValue = parseUriReference(::isClosingAngle).surroundedBy(takeWithLws('<'), takeWithLws('>'))
+private val parseLinkValue = parseUriReference(setOf('>')).surroundedBy(takeWithLws('<'), takeWithLws('>'))
     .flatMap { uriReference ->
         val parseSeparator = takeWithLws(';')
         parseRepeatedly(parseSeparator.andThenTake(parseLinkParam)).map { parameters ->
-            Link(uriReference, removeDuplicateTitleStar(parameters))
+            Link(uriReference, removeParameterDuplicates(parameters))
         }
     }
 

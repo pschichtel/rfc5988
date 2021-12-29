@@ -6,8 +6,9 @@ import tel.schich.rfc5988.parsing.Result
 import tel.schich.rfc5988.parsing.invoke
 import tel.schich.rfc5988.rfc5646.Language
 import tel.schich.rfc5988.rfc5646.LanguageTag
-import tel.schich.rfc5988.rfc5987.ExtValue
+import tel.schich.rfc5988.rfc5987.ExtendedValue
 import kotlin.test.assertIs
+import kotlin.text.Charsets.UTF_8
 
 internal class ParserKtTest {
 
@@ -63,14 +64,14 @@ internal class ParserKtTest {
                     "/TheBook/chapter2",
                     listOf(
                         Parameter.Relation(listOf("previous")),
-                        Parameter.TitleStar(ExtValue(Charsets.UTF_8, de, "letztes Kapitel")),
+                        Parameter.TitleStar(ExtendedValue(UTF_8, de, "letztes Kapitel")),
                     ),
                 ),
                 Link(
                     "/TheBook/chapter4",
                     listOf(
                         Parameter.Relation(listOf("next")),
-                        Parameter.TitleStar(ExtValue(Charsets.UTF_8, de, "nächstes Kapitel")),
+                        Parameter.TitleStar(ExtendedValue(UTF_8, de, "nächstes Kapitel")),
                     ),
                 )
             ),
@@ -87,6 +88,161 @@ internal class ParserKtTest {
                     "http://example.org/",
                     listOf(
                         Parameter.Relation(listOf("start", "http://example.net/relation/other")),
+                    ),
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun duplicatedRelParameter() {
+        testExample(
+            input = """</>; rel=a; rel=b""",
+            expected = listOf(
+                Link(
+                    "/",
+                    listOf(
+                        Parameter.Relation(listOf("a")),
+                    ),
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun duplicatedAnchorParameter() {
+        testExample(
+            input = """</>; anchor="a"; anchor="b"""",
+            expected = listOf(
+                Link(
+                    "/",
+                    listOf(
+                        Parameter.Anchor("a"),
+                        Parameter.Anchor("b"),
+                    ),
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun duplicatedRevParameter() {
+        testExample(
+            input = """</>; rev=a; rev=b""",
+            expected = listOf(
+                Link(
+                    "/",
+                    listOf(
+                        Parameter.ReverseRelation(listOf("a")),
+                        Parameter.ReverseRelation(listOf("b")),
+                    ),
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun duplicatedHreflangParameter() {
+        testExample(
+            input = """</>; hreflang=de-DE; hreflang=en-US""",
+            expected = listOf(
+                Link(
+                    "/",
+                    listOf(
+                        Parameter.HrefLanguage(LanguageTag.Simple(Language(primary = "de"), region = "DE")),
+                        Parameter.HrefLanguage(LanguageTag.Simple(Language(primary = "en"), region = "US")),
+                    ),
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun duplicatedMediaParameter() {
+        testExample(
+            input = """</>; media="screen"; media="print"""",
+            expected = listOf(
+                Link(
+                    "/",
+                    listOf(
+                        Parameter.Media("screen"),
+                    ),
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun duplicatedTitleParameter() {
+        testExample(
+            input = """</>; title="a"; title="b"""",
+            expected = listOf(
+                Link(
+                    "/",
+                    listOf(
+                        Parameter.Title("a"),
+                    ),
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun duplicatedTitleStarParameter() {
+        testExample(
+            input = """</>; title*=UTF-8'de'a; title*=UTF-8'de'b""",
+            expected = listOf(
+                Link(
+                    "/",
+                    listOf(
+                        Parameter.TitleStar(ExtendedValue(UTF_8, LanguageTag.Simple(Language(primary = "de")), "a")),
+                    ),
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun duplicatedTypeParameter() {
+        testExample(
+            input = """</>; type=text/plain; type=text/html""",
+            expected = listOf(
+                Link(
+                    "/",
+                    listOf(
+                        Parameter.Type(MediaType("text", "plain")),
+                    ),
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun duplicatedExtensionParameter() {
+        testExample(
+            input = """</>; a=a; a=b""",
+            expected = listOf(
+                Link(
+                    "/",
+                    listOf(
+                        Parameter.Extension("a", "a"),
+                        Parameter.Extension("a", "b"),
+                    ),
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun duplicatedExtensionStarParameter() {
+        testExample(
+            input = """</>; a*=UTF-8'de'a; a*=UTF-8'de'b""",
+            expected = listOf(
+                Link(
+                    "/",
+                    listOf(
+                        Parameter.ExtensionStar("a", ExtendedValue(UTF_8, LanguageTag.Simple(Language(primary = "de")), "a")),
+                        Parameter.ExtensionStar("a", ExtendedValue(UTF_8, LanguageTag.Simple(Language(primary = "de")), "b")),
                     ),
                 ),
             ),

@@ -125,4 +125,19 @@ internal class ParserKtTest {
         // two extensions with same single-letter prefix
         testFailure("ar-a-aaa-b-bbb-a-ccc")
     }
+
+    private fun loopbackTest(input: String) {
+        val result = parseLanguageTag(input)
+        assertIs<Result.Ok<LanguageTag>>(result)
+        assertEquals("", result.rest.toString())
+        assertEquals(input, result.value.toString())
+    }
+
+    @Test
+    fun serialization() {
+        loopbackTest("de-DE")
+        loopbackTest("zh-CN-a-myext-x-private")
+        loopbackTest("az-Arab-x-AZE-derbend")
+        loopbackTest("hy-Latn-IT-arevela")
+    }
 }

@@ -119,9 +119,16 @@ private val parsePrivateUseTag: Parser<LanguageTag.PrivateUse> =
 
 val parseLanguageTag: Parser<LanguageTag> = parseLangtag or parsePrivateUseTag or parseGrandfathered
 
-data class Language(val primary: String, val extended: String? = null)
+data class Language(val primary: String, val extended: String? = null) {
+    override fun toString(): String {
+        val extendedTag = extended?.let { "-$it" } ?: ""
+        return "$primary$extendedTag"
+    }
+}
 
-data class Extension(val prefix: Char, val parts: List<String>)
+data class Extension(val prefix: Char, val parts: List<String>) {
+    override fun toString(): String = "$prefix-${parts.joinToString("-")}"
+}
 
 sealed interface LanguageTag {
     data class Simple(
@@ -131,12 +138,29 @@ sealed interface LanguageTag {
         val variants: List<String> = emptyList(),
         val extensions: Map<Char, Extension> = emptyMap(),
         val privateUse: String? = null,
-    ) : LanguageTag
+    ) : LanguageTag {
+        override fun toString(): String {
+            val languageTag = language.toString()
+            val scriptTag = script?.let { "-$it" } ?: ""
+            val regionTag = region?.let { "-$it" } ?: ""
+            val variantsTags = variants.joinToString(separator = "") { "-$it" }
+            val extensionsTags = extensions.values.joinToString(separator = "") { "-$it" }
+            val privateUseTag = privateUse?.let { "-$it" } ?: ""
 
-    data class PrivateUse(val name: String) : LanguageTag
+            return "$languageTag$scriptTag$regionTag$variantsTags$extensionsTags$privateUseTag"
+        }
+    }
+
+    data class PrivateUse(val name: String) : LanguageTag {
+        override fun toString(): String = name
+    }
 
     sealed interface Grandfathered : LanguageTag {
-        data class Irregular(val name: String) : Grandfathered
-        data class Regular(val name: String) : Grandfathered
+        data class Irregular(val name: String) : Grandfathered {
+            override fun toString(): String = name
+        }
+        data class Regular(val name: String) : Grandfathered {
+            override fun toString(): String = name
+        }
     }
 }

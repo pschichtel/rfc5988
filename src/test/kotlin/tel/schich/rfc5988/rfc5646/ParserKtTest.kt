@@ -139,5 +139,6 @@ internal class ParserKtTest {
         loopbackTest("zh-CN-a-myext-x-private")
         loopbackTest("az-Arab-x-AZE-derbend")
         loopbackTest("hy-Latn-IT-arevela")
+        loopbackTest("ar-b-bbb-a-ccc")
     }
 }

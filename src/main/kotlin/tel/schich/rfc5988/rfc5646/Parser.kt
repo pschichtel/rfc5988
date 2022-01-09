@@ -6,6 +6,7 @@ import tel.schich.rfc5988.parsing.andThenTake
 import tel.schich.rfc5988.parsing.concat
 import tel.schich.rfc5988.parsing.entireSliceOf
 import tel.schich.rfc5988.parsing.flatMap
+import tel.schich.rfc5988.parsing.forTrace
 import tel.schich.rfc5988.parsing.map
 import tel.schich.rfc5988.parsing.optional
 import tel.schich.rfc5988.parsing.or
@@ -140,12 +141,18 @@ sealed interface LanguageTag {
         val privateUse: String? = null,
     ) : LanguageTag {
         override fun toString(): String {
+
+            fun formatTag(value: String) = "-$value"
+            fun formatOptionalTag(value: String?) = value?.let(::formatTag) ?: ""
+
             val languageTag = language.toString()
-            val scriptTag = script?.let { "-$it" } ?: ""
-            val regionTag = region?.let { "-$it" } ?: ""
-            val variantsTags = variants.joinToString(separator = "") { "-$it" }
-            val extensionsTags = extensions.values.joinToString(separator = "") { "-$it" }
-            val privateUseTag = privateUse?.let { "-$it" } ?: ""
+            val scriptTag = formatOptionalTag(script)
+            val regionTag = formatOptionalTag(region)
+            val variantsTags = variants.joinToString(separator = "", transform = ::formatTag)
+            val extensionsTags = extensions.values
+                .map(Extension::toString)
+                .joinToString(separator = "", transform = ::formatTag)
+            val privateUseTag = formatOptionalTag(privateUse)
 
             return "$languageTag$scriptTag$regionTag$variantsTags$extensionsTags$privateUseTag"
         }

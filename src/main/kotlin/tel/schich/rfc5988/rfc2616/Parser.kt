@@ -1,22 +1,22 @@
 package tel.schich.rfc5988.rfc2616
 
-import tel.schich.rfc5988.parsing.Parser
-import tel.schich.rfc5988.parsing.Result
-import tel.schich.rfc5988.parsing.StringSlice
-import tel.schich.rfc5988.parsing.andThenIgnore
-import tel.schich.rfc5988.parsing.andThenTake
-import tel.schich.rfc5988.parsing.concat
-import tel.schich.rfc5988.parsing.entireSliceOf
-import tel.schich.rfc5988.parsing.forTrace
-import tel.schich.rfc5988.parsing.map
-import tel.schich.rfc5988.parsing.optional
-import tel.schich.rfc5988.parsing.or
-import tel.schich.rfc5988.parsing.parseRepeatedly
-import tel.schich.rfc5988.parsing.surroundedBy
-import tel.schich.rfc5988.parsing.take
-import tel.schich.rfc5988.parsing.takeString
-import tel.schich.rfc5988.parsing.takeFirst
-import tel.schich.rfc5988.parsing.traced
+import tel.schich.parserkombinator.Parser
+import tel.schich.parserkombinator.ParserResult
+import tel.schich.parserkombinator.StringSlice
+import tel.schich.parserkombinator.andThenIgnore
+import tel.schich.parserkombinator.andThenTake
+import tel.schich.parserkombinator.concat
+import tel.schich.parserkombinator.entireSliceOf
+import tel.schich.parserkombinator.forTrace
+import tel.schich.parserkombinator.map
+import tel.schich.parserkombinator.optional
+import tel.schich.parserkombinator.or
+import tel.schich.parserkombinator.parseRepeatedly
+import tel.schich.parserkombinator.surroundedBy
+import tel.schich.parserkombinator.take
+import tel.schich.parserkombinator.takeString
+import tel.schich.parserkombinator.takeFirst
+import tel.schich.parserkombinator.traced
 
 val LowercaseAlpha = ('a'..'z').toSet()
 val UppercaseAlpha = ('A'..'Z').toSet()
@@ -43,32 +43,32 @@ private val parseQdtext: Parser<StringSlice> = parseText { it != '"' }
 
 private val parseQuotedPair: Parser<Char> = take('\\').andThenTake(take(::isChar)).map { it[0] }
 
-private fun parseString(input: StringSlice): Result<String> {
+private fun parseString(input: StringSlice): ParserResult<String> {
     val builder = StringBuilder()
     var rest = input
     while (true) {
         when (val result = parseQuotedPair(rest)) {
-            is Result.Ok -> {
+            is ParserResult.Ok -> {
                 builder.append(result.value)
                 rest = result.rest
                 continue
             }
-            is Result.Error -> {}
+            is ParserResult.Error -> {}
         }
 
         when (val result = parseQdtext(rest)) {
-            is Result.Ok -> {
+            is ParserResult.Ok -> {
                 builder.append(result.value)
                 rest = result.rest
                 continue
             }
-            is Result.Error -> {}
+            is ParserResult.Error -> {}
         }
 
         break
     }
 
-    return Result.Ok(builder.toString(), rest)
+    return ParserResult.Ok(builder.toString(), rest)
 }
 
 val parseQuotedString: Parser<String> =
@@ -81,15 +81,15 @@ fun <T : Any> parseCommaSeparatedList(min: Int = 0, max: Int = -1, parser: Parse
 
     return { input ->
         when (max) {
-            in 0 until min -> Result.Error("Min ($min) can't be larger than max ($max)!", input)
-            0 -> Result.Ok(emptyList(), input)
+            in 0 until min -> ParserResult.Error("Min ($min) can't be larger than max ($max)!", input)
+            0 -> ParserResult.Ok(emptyList(), input)
             else -> {
                 val output = mutableListOf<T>()
                 var maxRemaining = max
                 var rest = input
 
                 when (val first = optionalElement(input)) {
-                    is Result.Ok -> {
+                    is ParserResult.Ok -> {
                         val firstValue = first.value
                         rest = first.rest
                         if (firstValue != null) {
@@ -97,35 +97,35 @@ fun <T : Any> parseCommaSeparatedList(min: Int = 0, max: Int = -1, parser: Parse
                             maxRemaining -= 1
                         }
                     }
-                    is Result.Error -> {
+                    is ParserResult.Error -> {
                     }
                 }
 
 
                 while (output.size != max) {
                     when (val result = parseCommaWithLws(rest)) {
-                        is Result.Ok -> {
+                        is ParserResult.Ok -> {
                             rest = result.rest
                         }
-                        is Result.Error -> {
+                        is ParserResult.Error -> {
                             break
                         }
                     }
                     when (val result = optionalElement(rest)) {
-                        is Result.Ok -> {
+                        is ParserResult.Ok -> {
                             val value = result.value
                             rest = result.rest
                             if (value != null) {
                                 output.add(value)
                             }
                         }
-                        is Result.Error -> {
+                        is ParserResult.Error -> {
                         }
                     }
                 }
 
-                if (output.size < min) Result.Error("only matched ${output.size} times, $min required!", input)
-                else Result.Ok(output.toList(), rest)
+                if (output.size < min) ParserResult.Error("only matched ${output.size} times, $min required!", input)
+                else ParserResult.Ok(output.toList(), rest)
             }
         }
     }

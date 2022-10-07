@@ -1,6 +1,6 @@
 package tel.schich.rfc5988.rfc4288
 
-import tel.schich.rfc5988.parsing.takeWhile
+import tel.schich.parserkombinator.takeWhile
 import tel.schich.rfc5988.rfc2616.Alpha
 import tel.schich.rfc5988.rfc2616.Digit
 

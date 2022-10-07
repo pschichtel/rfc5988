@@ -1,21 +1,20 @@
 package tel.schich.rfc5988.rfc5646
 
-import tel.schich.rfc5988.parsing.Parser
-import tel.schich.rfc5988.parsing.Result
-import tel.schich.rfc5988.parsing.andThenTake
-import tel.schich.rfc5988.parsing.concat
-import tel.schich.rfc5988.parsing.entireSliceOf
-import tel.schich.rfc5988.parsing.flatMap
-import tel.schich.rfc5988.parsing.forTrace
-import tel.schich.rfc5988.parsing.map
-import tel.schich.rfc5988.parsing.optional
-import tel.schich.rfc5988.parsing.or
-import tel.schich.rfc5988.parsing.parseRepeatedly
-import tel.schich.rfc5988.parsing.parseSeparatedList
-import tel.schich.rfc5988.parsing.take
-import tel.schich.rfc5988.parsing.takeExactlyWhile
-import tel.schich.rfc5988.parsing.takeString
-import tel.schich.rfc5988.parsing.then
+import tel.schich.parserkombinator.Parser
+import tel.schich.parserkombinator.ParserResult
+import tel.schich.parserkombinator.andThenTake
+import tel.schich.parserkombinator.concat
+import tel.schich.parserkombinator.entireSliceOf
+import tel.schich.parserkombinator.flatMap
+import tel.schich.parserkombinator.map
+import tel.schich.parserkombinator.optional
+import tel.schich.parserkombinator.or
+import tel.schich.parserkombinator.parseRepeatedly
+import tel.schich.parserkombinator.parseSeparatedList
+import tel.schich.parserkombinator.take
+import tel.schich.parserkombinator.takeExactlyWhile
+import tel.schich.parserkombinator.takeString
+import tel.schich.parserkombinator.then
 import tel.schich.rfc5988.rfc2616.Alpha
 import tel.schich.rfc5988.rfc2616.Digit
 
@@ -95,7 +94,7 @@ private val parseLangtag: Parser<LanguageTag.Simple> = parseLanguage.flatMap { l
                         { input ->
                             val extensionMap = extensions.groupBy { it.prefix }
                             if (extensionMap.any { it.value.size > 1 }) {
-                                Result.Error("Duplicated extensions exists: $extensionMap", input)
+                                ParserResult.Error("Duplicated extensions exists: $extensionMap", input)
                             } else {
                                 val tag = LanguageTag.Simple(
                                     language,
@@ -105,7 +104,7 @@ private val parseLangtag: Parser<LanguageTag.Simple> = parseLanguage.flatMap { l
                                     extensionMap.mapValues { (_, value) -> value.first() },
                                     privateUse?.toString(),
                                 )
-                                Result.Ok(tag, input)
+                                ParserResult.Ok(tag, input)
                             }
                         }
                     }

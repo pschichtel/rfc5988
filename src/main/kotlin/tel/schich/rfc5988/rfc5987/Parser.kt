@@ -1,17 +1,17 @@
 package tel.schich.rfc5988.rfc5987
 
-import tel.schich.rfc5988.parsing.Parser
-import tel.schich.rfc5988.parsing.Result
-import tel.schich.rfc5988.parsing.andThenTake
-import tel.schich.rfc5988.parsing.concat
-import tel.schich.rfc5988.parsing.flatMap
-import tel.schich.rfc5988.parsing.map
-import tel.schich.rfc5988.parsing.optional
-import tel.schich.rfc5988.parsing.or
-import tel.schich.rfc5988.parsing.surroundedBy
-import tel.schich.rfc5988.parsing.take
-import tel.schich.rfc5988.parsing.takeString
-import tel.schich.rfc5988.parsing.takeWhile
+import tel.schich.parserkombinator.Parser
+import tel.schich.parserkombinator.ParserResult
+import tel.schich.parserkombinator.andThenTake
+import tel.schich.parserkombinator.concat
+import tel.schich.parserkombinator.flatMap
+import tel.schich.parserkombinator.map
+import tel.schich.parserkombinator.optional
+import tel.schich.parserkombinator.or
+import tel.schich.parserkombinator.surroundedBy
+import tel.schich.parserkombinator.take
+import tel.schich.parserkombinator.takeString
+import tel.schich.parserkombinator.takeWhile
 import tel.schich.rfc5988.rfc2234.HexDigitChars
 import tel.schich.rfc5988.rfc2616.Alpha
 import tel.schich.rfc5988.rfc2616.Digit
@@ -44,29 +44,29 @@ private fun parseValueChars(charset: Charset): Parser<String> = { input ->
 
     while (true) {
         when (val result = parsePctEncoded(rest)) {
-            is Result.Ok -> {
+            is ParserResult.Ok -> {
                 builder.add(result.value)
                 rest = result.rest
                 continue
             }
-            is Result.Error -> {}
+            is ParserResult.Error -> {}
         }
 
         when (val result = take(AttrChars)(rest)) {
-            is Result.Ok -> {
+            is ParserResult.Ok -> {
                 for (c in result.value) {
                     builder.add(c.code.toByte())
                 }
                 rest = result.rest
                 continue
             }
-            is Result.Error -> {}
+            is ParserResult.Error -> {}
         }
 
         break
     }
 
-    Result.Ok(String(builder.toByteArray(), charset), rest)
+    ParserResult.Ok(String(builder.toByteArray(), charset), rest)
 }
 
 val parseParamName = takeWhile(min = 1, oneOf = AttrChars)

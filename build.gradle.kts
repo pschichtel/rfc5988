@@ -18,6 +18,7 @@ repositories {
 }
 
 dependencies {
+    implementation("tel.schich:parser-kombinator:0.2.0")
     testImplementation(kotlin("test"))
 }
 

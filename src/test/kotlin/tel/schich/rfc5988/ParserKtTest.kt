@@ -2,8 +2,8 @@ package tel.schich.rfc5988
 
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
-import tel.schich.rfc5988.parsing.Result
-import tel.schich.rfc5988.parsing.invoke
+import tel.schich.parserkombinator.ParserResult
+import tel.schich.parserkombinator.invoke
 import tel.schich.rfc5988.rfc5646.Language
 import tel.schich.rfc5988.rfc5646.LanguageTag
 import tel.schich.rfc5988.rfc5987.ExtendedValue
@@ -14,7 +14,7 @@ internal class ParserKtTest {
 
     private fun testExample(input: String, expected: List<Link>) {
         val result = parseLink(input.replace("\n", "\r\n"))
-        assertIs<Result.Ok<List<Link>>>(result)
+        assertIs<ParserResult.Ok<List<Link>>>(result)
         assertEquals(expected, result.value)
         assertTrue(result.rest.isEmpty())
     }

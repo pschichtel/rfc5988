@@ -1,10 +1,10 @@
 package tel.schich.rfc5988.rfc3986
 
-import tel.schich.rfc5988.parsing.Parser
-import tel.schich.rfc5988.parsing.forTrace
-import tel.schich.rfc5988.parsing.map
-import tel.schich.rfc5988.parsing.takeUntil
-import tel.schich.rfc5988.parsing.trace
+import tel.schich.parserkombinator.Parser
+import tel.schich.parserkombinator.forTrace
+import tel.schich.parserkombinator.map
+import tel.schich.parserkombinator.takeUntil
+import tel.schich.parserkombinator.trace
 import tel.schich.rfc5988.rfc2616.SP
 
 /**

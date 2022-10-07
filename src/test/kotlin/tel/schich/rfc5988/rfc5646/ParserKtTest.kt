@@ -2,16 +2,16 @@ package tel.schich.rfc5988.rfc5646
 
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
-import tel.schich.rfc5988.parsing.Result
-import tel.schich.rfc5988.parsing.invoke
-import tel.schich.rfc5988.parsing.parseEntirely
+import tel.schich.parserkombinator.ParserResult
+import tel.schich.parserkombinator.invoke
+import tel.schich.parserkombinator.parseEntirely
 import kotlin.test.assertIs
 
 internal class ParserKtTest {
 
     private fun test(input: String, expected: LanguageTag) {
         val result = parseLanguageTag(input)
-        assertIs<Result.Ok<LanguageTag>>(result)
+        assertIs<ParserResult.Ok<LanguageTag>>(result)
         assertEquals("", result.rest.toString())
         assertEquals(expected, result.value)
     }
@@ -106,7 +106,7 @@ internal class ParserKtTest {
 
     private fun testFailure(input: String) {
         val result = parseEntirely(parseLanguageTag)(input)
-        assertIs<Result.Error>(result)
+        assertIs<ParserResult.Error>(result)
         assertNotEquals("", result.rest.toString())
     }
 
@@ -128,7 +128,7 @@ internal class ParserKtTest {
 
     private fun loopbackTest(input: String) {
         val result = parseLanguageTag(input)
-        assertIs<Result.Ok<LanguageTag>>(result)
+        assertIs<ParserResult.Ok<LanguageTag>>(result)
         assertEquals("", result.rest.toString())
         assertEquals(input, result.value.toString())
     }

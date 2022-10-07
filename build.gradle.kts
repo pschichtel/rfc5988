@@ -24,7 +24,7 @@ dependencies {
 
 tasks.withType<Test> {
     useJUnitPlatform()
-    val traceProperty = "tel.schich.rfc5988.parsing.trace"
+    val traceProperty = "tel.schich.parser-kombinator.trace"
     systemProperties[traceProperty] = System.getProperty(traceProperty)
 }
 

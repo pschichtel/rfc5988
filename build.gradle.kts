@@ -1,3 +1,4 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
@@ -13,12 +14,18 @@ plugins {
 group = "tel.schich"
 version = "1.0.0-SNAPSHOT"
 
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(8)
+    }
+}
+
 repositories {
     mavenCentral()
 }
 
 dependencies {
-    implementation("tel.schich:parser-kombinator:0.2.0")
+    implementation("tel.schich:parser-kombinator:0.3.0")
     testImplementation(kotlin("test"))
 }
 
@@ -29,7 +36,9 @@ tasks.withType<Test> {
 }
 
 tasks.withType<KotlinCompile> {
-    kotlinOptions.jvmTarget = "1.8"
+    compilerOptions {
+        jvmTarget = JvmTarget.JVM_1_8
+    }
 }
 
 val sourcesJar by tasks.creating(Jar::class) {
